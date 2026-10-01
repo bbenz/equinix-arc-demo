@@ -46,7 +46,7 @@ flowchart LR
     PROXY -->|Microsoft backbone| ARCGW
 ```
 
-## The private path, in one sentence
+## The private path
 
 The Arc agents (and the Fleet member agent) on the Equinix cluster use an explicit **passthrough**
 proxy. That proxy is reachable only across **Equinix Fabric and ExpressRoute private peering**. It
@@ -54,23 +54,6 @@ forwards only an allowlisted set of FQDNs. The core of that list is the **Azure 
 nine endpoints. The demo **proves** this on stage: the Azure proxy log shows Arc tunnels arriving
 from Equinix node IPs, and the Equinix storefront is fetched from Azure across the circuit.
 For details, see [docs/NETWORKING-EXPRESSROUTE.md](docs/NETWORKING-EXPRESSROUTE.md).
-
-## What's new compared with `fleet-manager-arc-demo`
-
-| | fleet-manager-arc-demo | **this repo** |
-|---|---|---|
-| Members | AKS, EKS, GKE | AKS, EKS, **Kubernetes at Equinix** |
-| Arc connectivity | Public internet | EKS: public. **Equinix: ExpressRoute + Arc gateway + proxy** |
-| New Terraform | none | `terraform/equinix` (Fabric connections, optional FCR + BGP) and ER circuit/gateway/proxy in `terraform/azure` |
-| New steps | none | `05-connect-expressroute`, a private-path proof panel, and Arc Cluster Connect access |
-| Providers | azurerm 4.x | **azurerm 5.x**, equinix 5.x (Metal removed), azapi 2.x, aws 6.x |
-| Lessons carried over | none | Every fix from the July 2026 full run, such as the LBC scheme/subnets, Recreate strategy, Fleet label quoting, hub RBAC, and pinned AKS upgrade settings |
-
-> **Equinix Metal is gone.** Metal reached end of life on **June 30, 2026**, and the Equinix
-> Terraform provider v5 removed its resources. The Equinix cluster therefore runs on hardware in
-> an Equinix IBX (colocation, Equinix-managed, or a partner). See
-> [docs/EQUINIX-CLUSTER.md](docs/EQUINIX-CLUSTER.md). If you want a Microsoft-first alternative to
-> K3s, that doc also covers **AKS on bare metal (preview)**.
 
 ## Repository structure
 

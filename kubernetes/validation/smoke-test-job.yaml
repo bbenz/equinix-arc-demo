@@ -1,0 +1,64 @@
+# In-cluster smoke test. scripts/09-validate-demo.ps1 applies this Job to each
+# member context, waits, reads the logs and deletes it. It proves the
+# Fleet-placed workload works end-to-end inside every footprint (frontend
+# HTTP, redis-cart TCP, cartservice gRPC port) independently of whether that
+# footprint's external entry point is reachable from the operator machine.
+#
+# Deliberately NOT part of kubernetes/base: it must never become a permanent
+# Fleet-placed resource.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: equinix-arc-demo-smoke-test
+  namespace: online-boutique
+  labels:
+    app: equinix-arc-demo-smoke-test
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 120
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: equinix-arc-demo-smoke-test
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: smoke-test
+          image: busybox:1.38.0@sha256:fd8d9aa63ba2f0982b5304e1ee8d3b90a210bc1ffb5314d980eb6962f1a9715d
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "== frontend Service (HTTP) =="
+              wget -q -O- --timeout=10 http://frontend.online-boutique.svc.cluster.local:80/_healthz \
+                && echo "frontend: OK" || (echo "frontend: FAILED"; exit 1)
+
+              echo "== redis-cart Service (TCP) =="
+              nc -z -w 5 redis-cart.online-boutique.svc.cluster.local 6379 \
+                && echo "redis-cart: OK" || (echo "redis-cart: FAILED"; exit 1)
+
+              echo "== cartservice Service (TCP, gRPC port) =="
+              nc -z -w 5 cartservice.online-boutique.svc.cluster.local 7070 \
+                && echo "cartservice: OK" || (echo "cartservice: FAILED"; exit 1)
+
+              echo "All in-cluster smoke checks passed."
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi

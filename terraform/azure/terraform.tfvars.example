@@ -1,0 +1,36 @@
+# Copy to terraform.tfvars (gitignored) - or let scripts/03-init-plan.ps1
+# generate it from .env + artifacts/region-selection.json + live ExpressRoute
+# circuit state. No secrets belong in this file.
+
+owner           = "your-alias"
+project         = "equinix-arc-demo"
+environment     = "demo"
+expiration_date = "2026-11-21"
+
+# location = "westus2"   # auto-selected by scripts/02-select-regions.ps1
+
+# expected_tenant_id       = "00000000-0000-0000-0000-000000000000"
+# expected_subscription_id = "00000000-0000-0000-0000-000000000000"
+
+# --- ExpressRoute / Equinix ---
+enable_expressroute                  = true
+expressroute_peering_location        = "Silicon Valley" # Equinix SV1
+expressroute_bandwidth_mbps          = 50
+expressroute_gateway_sku             = "ErGwScale"
+expressroute_private_peering_enabled = false # flipped by scripts once Equinix provisions the circuit
+expressroute_peer_asn                = 65080
+expressroute_primary_peer_prefix     = "192.168.250.0/30"
+expressroute_secondary_peer_prefix   = "192.168.250.4/30"
+expressroute_vlan_id                 = 200
+equinix_onprem_prefixes              = ["10.80.0.0/24"]
+
+# Publish the Equinix storefront through the hub (presenter IP only):
+# storefront_allowed_cidrs     = ["203.0.113.10/32"]
+# equinix_storefront_upstreams = ["10.80.0.11:80", "10.80.0.12:80"]
+
+# Optional Private Link extras:
+# enable_private_acr          = false
+# enable_dns_private_resolver = false
+
+# aks_node_vm_size  = "Standard_D2s_v5"
+# fleet_hub_vm_size = "Standard_D2s_v5"

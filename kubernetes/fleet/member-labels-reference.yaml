@@ -1,0 +1,34 @@
+# Reference documentation for Fleet member cluster labels - NOT applied with
+# kubectl. scripts/07-join-fleet.ps1 applies these labels with
+# `az fleet member create --member-labels "<k=v k=v ...>"` (ONE space-separated
+# argument - passing pairs as separate arguments breaks the fleet extension,
+# a lesson from fleet-manager-arc-demo). Re-running the script updates labels.
+#
+# Every placement/override selector in this repo uses ONLY these hand-applied
+# labels (never Azure-only fleet.azure.com/* auto-labels), so all three
+# footprints are selected symmetrically.
+#
+#   label          aks-demo        eks-demo           equinix-demo
+#   -------------  --------------  -----------------  ----------------------
+#   cloud          azure           aws                equinix
+#   provider       aks             eks                k3s (or aks-baremetal)
+#   connectivity   azure-native    public-internet    expressroute
+#   site           azure-<region>  aws-<region>       equinix-<metro>   e.g. equinix-sv
+#   location       <azure region>  <aws region>       <metro, lowercase> e.g. sv
+#   demo           equinix-arc-online-boutique (all members)
+#   environment    demo (all members)
+#
+# Examples (illustrative - the real commands live in scripts/07-join-fleet.ps1):
+#
+#   az fleet member create -g <rg> -f <fleet> -n equinix-demo \
+#     --member-cluster-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Kubernetes/connectedClusters/equinix-demo \
+#     --update-group equinix \
+#     --member-labels "cloud=equinix provider=k3s connectivity=expressroute site=equinix-sv location=sv demo=equinix-arc-online-boutique environment=demo"
+#
+# Selecting by a label other than `cloud` - e.g. place something only on
+# members that sit behind ExpressRoute:
+#
+#   clusterSelectorTerms:
+#     - labelSelector:
+#         matchLabels:
+#           connectivity: expressroute

@@ -1,0 +1,58 @@
+# ResourceOverride: appends the upstream ENV_PLATFORM variable to the frontend
+# Deployment so each storefront shows where it runs - the most visible
+# "same app, different footprint" moment in the demo. The frontend renders a
+# colored platform banner on every page (templates: {{$.platform_name}}):
+#   azure   -> "Azure"
+#   aws     -> "AWS"
+#   equinix -> "On-Premises"  (upstream's `onprem` value; the Equinix cage is
+#              customer-controlled infrastructure)
+#
+# https://learn.microsoft.com/azure/kubernetes-fleet/howto-use-overrides-customize-resources-placement
+apiVersion: placement.kubernetes-fleet.io/v1
+kind: ResourceOverride
+metadata:
+  name: frontend-env-platform-override
+  namespace: online-boutique
+spec:
+  resourceSelectors:
+    - group: apps
+      kind: Deployment
+      version: v1
+      name: frontend
+  policy:
+    overrideRules:
+      - clusterSelector:
+          clusterSelectorTerms:
+            - labelSelector:
+                matchLabels:
+                  cloud: azure
+        jsonPatchOverrides:
+          - op: add
+            path: /spec/template/spec/containers/0/env/-
+            value:
+              name: ENV_PLATFORM
+              value: "azure"
+      - clusterSelector:
+          clusterSelectorTerms:
+            - labelSelector:
+                matchLabels:
+                  cloud: aws
+        jsonPatchOverrides:
+          - op: add
+            path: /spec/template/spec/containers/0/env/-
+            value:
+              name: ENV_PLATFORM
+              value: "aws"
+      - clusterSelector:
+          clusterSelectorTerms:
+            - labelSelector:
+                matchLabels:
+                  cloud: equinix
+        jsonPatchOverrides:
+          - op: add
+            path: /spec/template/spec/containers/0/env/-
+            value:
+              name: ENV_PLATFORM
+              value: "onprem"
+  placement:
+    name: crp-online-boutique

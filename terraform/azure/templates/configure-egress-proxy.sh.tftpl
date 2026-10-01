@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# Rendered by terraform/azure/egress-proxy.tf and executed on the egress proxy
+# VM through Azure VM Run Command (re-run automatically whenever the rendered
+# content changes - e.g. a new allowed domain - without recreating the VM).
+#
+# Squid here is a PASSTHROUGH explicit proxy (HTTP CONNECT tunnels only, no
+# TLS interception). That is a hard requirement: Fleet Manager does not
+# support TLS-terminating proxies for Arc members, and Arc gateway traffic
+# must not be inspected.
+# -----------------------------------------------------------------------------
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+
+# First boot: let cloud-init / unattended-upgrades finish before using apt.
+cloud-init status --wait >/dev/null 2>&1 || true
+
+if ! command -v squid >/dev/null 2>&1 || ! command -v nginx >/dev/null 2>&1; then
+  apt-get -o DPkg::Lock::Timeout=600 update -y
+  apt-get -o DPkg::Lock::Timeout=600 install -y --no-install-recommends squid nginx
+fi
+
+# --- Squid allowlist ----------------------------------------------------------
+cat > /etc/squid/allowed-domains.txt <<'EOF'
+%{ for d in allowed_domains ~}
+${d}
+%{ endfor ~}
+EOF
+
+cat > /etc/squid/squid.conf <<'EOF'
+# Managed by equinix-arc-demo (terraform/azure/templates/configure-egress-proxy.sh.tftpl)
+http_port ${proxy_port}
+visible_hostname equinix-arc-egress-proxy
+
+acl equinix_onprem src ${join(" ", onprem_prefixes)}
+acl azure_hub src ${hub_vnet_cidr}
+acl SSL_ports port 443
+acl SSL_ports port 8084
+acl Safe_ports port 80
+acl Safe_ports port 443
+acl Safe_ports port 8084
+acl CONNECT method CONNECT
+acl allowed_domains dstdomain "/etc/squid/allowed-domains.txt"
+
+http_access deny !Safe_ports
+http_access deny CONNECT !SSL_ports
+http_access allow equinix_onprem allowed_domains
+http_access allow azure_hub allowed_domains
+http_access deny all
+
+# Passthrough only: no caching, no TLS interception, no identifying headers.
+cache deny all
+forwarded_for delete
+via off
+shutdown_lifetime 3 seconds
+coredump_dir /var/spool/squid
+
+# One line per tunnel: time, client IP (an Equinix node), result, method, target.
+logformat demo %tl %>a %Ss/%03>Hs %rm %ru
+access_log stdio:/var/log/squid/access.log demo
+EOF
+
+squid -k parse
+systemctl enable squid >/dev/null 2>&1
+systemctl restart squid
+
+# --- Optional: publish the Equinix storefront over ExpressRoute -------------
+cat > /etc/nginx/sites-available/equinix-storefront <<'EOF'
+# Managed by equinix-arc-demo. Browser -> this VM (Azure public IP, presenter
+# CIDRs only via NSG) -> ExpressRoute private peering -> Equinix cluster.
+%{ if length(storefront_upstreams) > 0 ~}
+upstream equinix_storefront {
+%{ for u in storefront_upstreams ~}
+  server ${u} max_fails=2 fail_timeout=10s;
+%{ endfor ~}
+}
+
+server {
+  listen 80 default_server;
+  server_name _;
+
+  location / {
+    proxy_pass http://equinix_storefront;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto http;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 30s;
+    add_header X-Served-Via "azure-hub-over-expressroute" always;
+  }
+}
+%{ else ~}
+server {
+  listen 80 default_server;
+  server_name _;
+  default_type text/plain;
+  return 503 "Equinix storefront not published yet - set EQUINIX_STOREFRONT_UPSTREAMS in .env and re-run scripts/03-init-plan.ps1 + scripts/04-apply.ps1.\n";
+}
+%{ endif ~}
+EOF
+
+ln -sf /etc/nginx/sites-available/equinix-storefront /etc/nginx/sites-enabled/equinix-storefront
+rm -f /etc/nginx/sites-enabled/default
+nginx -t
+systemctl enable nginx >/dev/null 2>&1
+systemctl restart nginx
+
+echo "egress proxy ready: squid on :${proxy_port} with $(grep -c . /etc/squid/allowed-domains.txt) allowed domains; storefront upstreams: ${length(storefront_upstreams)}"

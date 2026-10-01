@@ -1,0 +1,26 @@
+# Kubernetes RBAC for Azure Arc Cluster Connect on the Equinix cluster.
+#
+# After onboarding, the presenter reaches the Equinix cluster WITHOUT a VPN or
+# any inbound port: `az connectedk8s proxy` tunnels kubectl through Azure Arc
+# (and, at Equinix, out through Arc gateway over ExpressRoute).
+# Cluster Connect authenticates you with your Entra ID object ID, which must be
+# bound to a Kubernetes role (this demo doesn't enable Azure RBAC on Arc).
+#
+# scripts/06-connect-arc.ps1 applies this automatically, replacing
+# __PRESENTER_OBJECT_ID__ with `az ad signed-in-user show --query id`.
+# cluster-admin keeps the live demo simple; use the built-in `view` or `edit`
+# ClusterRole for least privilege.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: equinix-arc-demo-presenter
+  labels:
+    demo: equinix-arc-online-boutique
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: "__PRESENTER_OBJECT_ID__"

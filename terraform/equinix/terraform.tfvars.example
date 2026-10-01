@@ -1,0 +1,34 @@
+# Copy to terraform.tfvars (gitignored) - or let scripts/05-connect-expressroute.ps1
+# generate it from .env. NEVER put the ExpressRoute service key or Equinix API
+# credentials in this file: the service key is passed via the process-scoped
+# TF_VAR_expressroute_service_key env var, and Equinix credentials via
+# EQUINIX_API_CLIENTID / EQUINIX_API_CLIENTSECRET.
+
+metro_code          = "SV" # Silicon Valley (Equinix SV1) - matches the Azure peering location
+bandwidth_mbps      = 50   # must equal the circuit bandwidth
+notification_emails = ["you@example.com"]
+# project_id          = "<Equinix IAM project id>"
+# purchase_order_number = "PO-12345"
+
+expressroute_vlan_c_tag = 200 # = terraform/azure expressroute_vlan_id
+
+# --- port origin (default): your cage ports + your edge router does BGP ---
+fabric_origin       = "port"
+primary_port_uuid   = "<primary-port-uuid>"
+secondary_port_uuid = "<secondary-port-uuid>"
+port_link_protocol  = "DOT1Q"
+primary_vlan_tag    = 1010
+secondary_vlan_tag  = 1020
+edge_asn            = 65080
+
+# --- cloud_router origin: Equinix Fabric Cloud Router does BGP to Microsoft ---
+# fabric_origin          = "cloud_router"
+# create_cloud_router    = true
+# account_number         = "<equinix-account-number>"
+# fcr_customer_port_uuid = "<cage-port-uuid>"
+# fcr_customer_vlan_tag  = 1030
+
+# --- service_token origin ---
+# fabric_origin                = "service_token"
+# primary_service_token_uuid   = "<token-uuid>"
+# secondary_service_token_uuid = "<token-uuid>"

@@ -1,0 +1,30 @@
+! =============================================================================
+! Cisco IOS-XE example for the Equinix cage edge router - port origin.
+! Rendered by scripts/05-connect-expressroute.ps1 into artifacts/edge-router-bgp-iosxe.txt
+! Your router = FIRST usable IP of each /30, Microsoft MSEE = SECOND. MSFT ASN 12076.
+! Equinix Fabric maps your port VLAN onto the ExpressRoute tags (peering VLAN {{ER_VLAN}}).
+! =============================================================================
+interface {{PRIMARY_INTERFACE}}.{{PRIMARY_VLAN}}
+ description Equinix Fabric -> Azure ExpressRoute (primary)
+ encapsulation dot1Q {{PRIMARY_VLAN}}
+ ip address {{PRIMARY_LOCAL_IP}} 255.255.255.252
+!
+interface {{SECONDARY_INTERFACE}}.{{SECONDARY_VLAN}}
+ description Equinix Fabric -> Azure ExpressRoute (secondary)
+ encapsulation dot1Q {{SECONDARY_VLAN}}
+ ip address {{SECONDARY_LOCAL_IP}} 255.255.255.252
+!
+router bgp {{EDGE_ASN}}
+ bgp log-neighbor-changes
+ neighbor {{PRIMARY_MSEE_IP}} remote-as 12076
+ neighbor {{PRIMARY_MSEE_IP}} description azure-expressroute-primary
+ neighbor {{SECONDARY_MSEE_IP}} remote-as 12076
+ neighbor {{SECONDARY_MSEE_IP}} description azure-expressroute-secondary
+ !
+ address-family ipv4
+{{NETWORK_STATEMENTS_IOS}}
+  neighbor {{PRIMARY_MSEE_IP}} activate
+  neighbor {{SECONDARY_MSEE_IP}} activate
+ exit-address-family
+!
+! Verify: show bgp ipv4 unicast summary ; show ip route {{PROXY_IP}}

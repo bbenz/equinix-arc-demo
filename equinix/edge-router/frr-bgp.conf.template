@@ -1,0 +1,41 @@
+! =============================================================================
+! FRRouting (frr.conf) example for the Equinix cage edge router - port origin.
+! Rendered by scripts/05-connect-expressroute.ps1 into artifacts/edge-router-bgp-frr.conf
+!
+! Azure ExpressRoute private peering:
+!   - your router takes the FIRST usable IP of each /30, Microsoft's MSEE the SECOND
+!   - Microsoft ASN 12076, your ASN {{EDGE_ASN}}
+!   - primary leg   : VLAN {{PRIMARY_VLAN}} on the primary Fabric port, {{PRIMARY_LOCAL_IP}}/30 <-> {{PRIMARY_MSEE_IP}}
+!   - secondary leg : VLAN {{SECONDARY_VLAN}} on the secondary Fabric port, {{SECONDARY_LOCAL_IP}}/30 <-> {{SECONDARY_MSEE_IP}}
+!   - Equinix Fabric maps your port VLAN onto the ExpressRoute S-tag/C-tag
+!     (C-tag / Azure peering VLAN = {{ER_VLAN}}). On a QinQ port use
+!     S-tag {{PRIMARY_VLAN}}/{{SECONDARY_VLAN}} + C-tag {{ER_VLAN}} instead.
+!
+! Linux sub-interfaces (netplan or iproute2), e.g.:
+!   ip link add link <primary-nic> name <primary-nic>.{{PRIMARY_VLAN}} type vlan id {{PRIMARY_VLAN}}
+!   ip addr add {{PRIMARY_LOCAL_IP}}/30 dev <primary-nic>.{{PRIMARY_VLAN}} && ip link set <primary-nic>.{{PRIMARY_VLAN}} up
+!   ip link add link <secondary-nic> name <secondary-nic>.{{SECONDARY_VLAN}} type vlan id {{SECONDARY_VLAN}}
+!   ip addr add {{SECONDARY_LOCAL_IP}}/30 dev <secondary-nic>.{{SECONDARY_VLAN}} && ip link set <secondary-nic>.{{SECONDARY_VLAN}} up
+! =============================================================================
+frr defaults traditional
+!
+router bgp {{EDGE_ASN}}
+ bgp router-id {{PRIMARY_LOCAL_IP}}
+ no bgp ebgp-requires-policy
+ neighbor {{PRIMARY_MSEE_IP}} remote-as 12076
+ neighbor {{PRIMARY_MSEE_IP}} description azure-expressroute-primary
+ neighbor {{SECONDARY_MSEE_IP}} remote-as 12076
+ neighbor {{SECONDARY_MSEE_IP}} description azure-expressroute-secondary
+ !
+ address-family ipv4 unicast
+  ! Advertise the Kubernetes node subnet(s) to Azure:
+{{NETWORK_STATEMENTS}}
+  neighbor {{PRIMARY_MSEE_IP}} activate
+  neighbor {{SECONDARY_MSEE_IP}} activate
+ exit-address-family
+!
+! Expected learned routes from Azure: the hub VNet {{HUB_VNET_CIDR}} (egress proxy at {{PROXY_IP}}).
+! Check with: vtysh -c "show bgp summary" ; vtysh -c "show ip route {{PROXY_IP}}"
+!
+line vty
+!

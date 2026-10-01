@@ -1,0 +1,34 @@
+! =============================================================================
+! FRRouting (frr.conf) example for the Equinix cage router - cloud_router origin
+! with the FCR-to-cage leg (EQUINIX_FCR_CUSTOMER_PORT_UUID).
+! Rendered by scripts/05-connect-expressroute.ps1 into artifacts/edge-router-fcr-leg-frr.conf
+!
+! Here the Fabric Cloud Router (FCR) runs BGP with Microsoft. Your cage router
+! only peers with the FCR over one Fabric connection:
+!   - VLAN {{FCR_LEG_VLAN}} on the Fabric port, {{CAGE_IP}}/{{PREFIX_LEN}} (you) <-> {{FCR_IP}} (FCR)
+!   - your ASN {{CAGE_ASN}}, the FCR's Equinix ASN {{FCR_ASN}}
+!   - advertise the Kubernetes node subnet(s); learn the Azure hub VNet {{HUB_VNET_CIDR}}
+!
+! Linux sub-interface (netplan or iproute2), e.g.:
+!   ip link add link <nic> name <nic>.{{FCR_LEG_VLAN}} type vlan id {{FCR_LEG_VLAN}}
+!   ip addr add {{CAGE_IP}}/{{PREFIX_LEN}} dev <nic>.{{FCR_LEG_VLAN}} && ip link set <nic>.{{FCR_LEG_VLAN}} up
+! =============================================================================
+frr defaults traditional
+!
+router bgp {{CAGE_ASN}}
+ bgp router-id {{CAGE_IP}}
+ no bgp ebgp-requires-policy
+ neighbor {{FCR_IP}} remote-as {{FCR_ASN}}
+ neighbor {{FCR_IP}} description equinix-fabric-cloud-router
+ !
+ address-family ipv4 unicast
+  ! Advertise the Kubernetes node subnet(s); the FCR passes them on to Azure:
+{{NETWORK_STATEMENTS}}
+  neighbor {{FCR_IP}} activate
+ exit-address-family
+!
+! Expected learned routes: the hub VNet {{HUB_VNET_CIDR}} (egress proxy at {{PROXY_IP}}).
+! Check with: vtysh -c "show bgp summary" ; vtysh -c "show ip route {{PROXY_IP}}"
+!
+line vty
+!

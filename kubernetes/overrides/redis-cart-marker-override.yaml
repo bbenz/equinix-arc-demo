@@ -1,0 +1,55 @@
+# ResourceOverride: harmless per-footprint marker on the independent,
+# in-cluster redis-cart Deployment (Deployment + pod template labels), so
+# `kubectl get deploy,pod -l cloud=<x>` demonstrations are obvious. It never
+# points Redis anywhere else: every member keeps its own ephemeral Redis.
+apiVersion: placement.kubernetes-fleet.io/v1
+kind: ResourceOverride
+metadata:
+  name: redis-cart-marker-override
+  namespace: online-boutique
+spec:
+  resourceSelectors:
+    - group: apps
+      kind: Deployment
+      version: v1
+      name: redis-cart
+  policy:
+    overrideRules:
+      - clusterSelector:
+          clusterSelectorTerms:
+            - labelSelector:
+                matchLabels:
+                  cloud: azure
+        jsonPatchOverrides:
+          - op: add
+            path: /metadata/labels/cloud
+            value: "azure"
+          - op: add
+            path: /spec/template/metadata/labels/cloud
+            value: "azure"
+      - clusterSelector:
+          clusterSelectorTerms:
+            - labelSelector:
+                matchLabels:
+                  cloud: aws
+        jsonPatchOverrides:
+          - op: add
+            path: /metadata/labels/cloud
+            value: "aws"
+          - op: add
+            path: /spec/template/metadata/labels/cloud
+            value: "aws"
+      - clusterSelector:
+          clusterSelectorTerms:
+            - labelSelector:
+                matchLabels:
+                  cloud: equinix
+        jsonPatchOverrides:
+          - op: add
+            path: /metadata/labels/cloud
+            value: "equinix"
+          - op: add
+            path: /spec/template/metadata/labels/cloud
+            value: "equinix"
+  placement:
+    name: crp-online-boutique

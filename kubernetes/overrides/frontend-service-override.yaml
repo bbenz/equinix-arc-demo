@@ -1,0 +1,88 @@
+# ResourceOverride: per-footprint annotations for the frontend-external
+# LoadBalancer Service. The base Service stays a plain `type: LoadBalancer`;
+# each rule adds only what that footprint's load balancer needs, plus
+# demo-visible markers. Rules are selected by member labels (`cloud`, plus
+# `connectivity` for Equinix), and each member matches exactly one rule.
+#
+# ${MEMBER-CLUSTER-NAME} is a Fleet reserved variable, replaced at placement
+# time with the member's name (aks-demo / eks-demo / equinix-demo).
+#
+# __AWS_PUBLIC_SUBNET_IDS__ is NOT a Fleet feature: scripts/08-deploy-workload.ps1
+# replaces it with terraform/aws `public_subnet_ids` before applying this file
+# to the hub (explicit subnets + internet-facing scheme were both required in
+# the fleet-manager-arc-demo AWS run).
+#
+# https://learn.microsoft.com/azure/kubernetes-fleet/howto-use-overrides-customize-resources-placement
+apiVersion: placement.kubernetes-fleet.io/v1
+kind: ResourceOverride
+metadata:
+  name: frontend-service-override
+  namespace: online-boutique
+spec:
+  resourceSelectors:
+    - group: ""
+      kind: Service
+      version: v1
+      name: frontend-external
+  policy:
+    overrideRules:
+      # --- Azure (AKS): Azure Standard Load Balancer ---
+      - clusterSelector:
+          clusterSelectorTerms:
+            - labelSelector:
+                matchLabels:
+                  cloud: azure
+        jsonPatchOverrides:
+          - op: add
+            path: /metadata/annotations
+            value:
+              service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path: "/_healthz"
+              demo.equinix-arc.io/member: "${MEMBER-CLUSTER-NAME}"
+              demo.equinix-arc.io/network-path: "azure-native"
+      # --- AWS (EKS): internet-facing NLB via the AWS Load Balancer Controller ---
+      - clusterSelector:
+          clusterSelectorTerms:
+            - labelSelector:
+                matchLabels:
+                  cloud: aws
+        jsonPatchOverrides:
+          - op: add
+            path: /metadata/annotations
+            value:
+              service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+              service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+              service.beta.kubernetes.io/aws-load-balancer-subnets: "__AWS_PUBLIC_SUBNET_IDS__"
+              demo.equinix-arc.io/member: "${MEMBER-CLUSTER-NAME}"
+              demo.equinix-arc.io/network-path: "public-internet"
+      # --- Equinix (K3s in the SV cage): private address on the cage network ---
+      # K3s ServiceLB answers on the node IPs; those are only reachable over
+      # ExpressRoute (and, for the demo browser, through the hub nginx).
+      # Using MetalLB instead? Add `metallb.io/address-pool: <your-pool>` here.
+      - clusterSelector:
+          clusterSelectorTerms:
+            - labelSelector:
+                matchLabels:
+                  cloud: equinix
+                  connectivity: expressroute
+        jsonPatchOverrides:
+          - op: add
+            path: /metadata/annotations
+            value:
+              demo.equinix-arc.io/member: "${MEMBER-CLUSTER-NAME}"
+              demo.equinix-arc.io/network-path: "expressroute-private-peering"
+      # --- Equinix-labeled cluster in rehearsal mode (ENABLE_EXPRESSROUTE=false) ---
+      - clusterSelector:
+          clusterSelectorTerms:
+            - labelSelector:
+                matchLabels:
+                  cloud: equinix
+                  connectivity: public-internet-rehearsal
+        jsonPatchOverrides:
+          - op: add
+            path: /metadata/annotations
+            value:
+              demo.equinix-arc.io/member: "${MEMBER-CLUSTER-NAME}"
+              demo.equinix-arc.io/network-path: "public-internet-rehearsal"
+  # Link to the CRP so override edits reconcile immediately.
+  placement:
+    name: crp-online-boutique

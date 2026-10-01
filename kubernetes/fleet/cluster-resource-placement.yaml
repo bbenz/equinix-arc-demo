@@ -1,0 +1,31 @@
+# ClusterResourcePlacement: propagates the online-boutique namespace (and every
+# resource in it - see kubernetes/base/kustomization.yaml) from the Fleet hub
+# to every member labeled demo=equinix-arc-online-boutique:
+#   - aks-demo      (Azure, native member)
+#   - eks-demo      (AWS, Arc-enabled, public internet)
+#   - equinix-demo  (Equinix SV, Arc-enabled over ExpressRoute + Arc gateway)
+#
+# Stable v1 API. Workload placement is GA for both AKS and Arc-enabled members.
+# https://learn.microsoft.com/azure/kubernetes-fleet/concepts-resource-placement
+apiVersion: placement.kubernetes-fleet.io/v1
+kind: ClusterResourcePlacement
+metadata:
+  name: crp-online-boutique
+spec:
+  resourceSelectors:
+    - group: ""
+      kind: Namespace
+      name: online-boutique
+      version: v1
+  policy:
+    # PickAll + an explicit label selector: "every member of THIS demo",
+    # not "every member of the fleet".
+    placementType: PickAll
+    affinity:
+      clusterAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          clusterSelectorTerms:
+            - labelSelector:
+                matchLabels:
+                  demo: equinix-arc-online-boutique
+  # strategy omitted deliberately: the Fleet default (RollingUpdate) applies.

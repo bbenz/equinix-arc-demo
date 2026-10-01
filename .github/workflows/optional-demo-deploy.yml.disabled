@@ -1,0 +1,75 @@
+name: optional-demo-deploy
+
+# DISABLED BY DEFAULT (".disabled" extension - GitHub ignores it). Rename to
+# optional-demo-deploy.yml only after configuring OIDC federation below and
+# only if you really want CI to create BILLABLE infrastructure.
+#
+# Scope: the cloud parts (Azure + AWS, rehearsal mode for the Equinix member is
+# NOT possible from a hosted runner). The ExpressRoute / Equinix steps need a
+# human: Equinix ordering, edge-router BGP and cage access - run those locally
+# with scripts/05-07.
+#
+# Auth: OIDC only (no long-lived cloud secrets in GitHub):
+#   Azure: app registration + federated credential  -> AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
+#   AWS:   IAM role trusting token.actions.githubusercontent.com -> AWS_ROLE_TO_ASSUME
+
+on:
+  workflow_dispatch:
+    inputs:
+      enable_aws:
+        description: "Deploy EKS too"
+        type: boolean
+        default: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - if: ${{ inputs.enable_aws }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: us-west-2
+      - name: Write .env (no ExpressRoute from CI)
+        shell: pwsh
+        run: |
+          (Get-Content .env.example) `
+            -replace '^ENABLE_AWS=.*', "ENABLE_AWS=$('${{ inputs.enable_aws }}'.ToLower())" `
+            -replace '^ENABLE_EQUINIX=.*', 'ENABLE_EQUINIX=false' `
+            -replace '^ENABLE_EXPRESSROUTE=.*', 'ENABLE_EXPRESSROUTE=false' `
+            -replace '^OWNER=.*', 'OWNER=github-actions' | Set-Content .env
+      - shell: pwsh
+        run: scripts/00-check-tools.ps1
+      - shell: pwsh
+        run: scripts/01-test-cloud-access.ps1 -RegisterProviders
+      - shell: pwsh
+        run: scripts/02-select-regions.ps1
+      - shell: pwsh
+        run: scripts/03-init-plan.ps1
+      - shell: pwsh
+        run: scripts/04-apply.ps1 -AutoApprove
+      - shell: pwsh
+        run: scripts/06-connect-arc.ps1
+      - shell: pwsh
+        run: scripts/07-join-fleet.ps1
+      - shell: pwsh
+        run: scripts/08-deploy-workload.ps1
+      - shell: pwsh
+        run: scripts/09-validate-demo.ps1
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: equinix-arc-demo-artifacts
+          path: artifacts/
+          retention-days: 14

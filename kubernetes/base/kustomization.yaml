@@ -1,0 +1,41 @@
+# Cloud-neutral base for the Online Boutique demo application.
+#
+# Source: https://github.com/GoogleCloudPlatform/microservices-demo
+# Pinned release: v0.10.6 (release/kubernetes-manifests.yaml)
+# License: Apache-2.0 (see upstream repository for full license text)
+#
+# Free of provider-specific annotations, storage classes and ingress classes.
+# Fleet Manager's ClusterResourcePlacement (kubernetes/fleet/) propagates this
+# exact definition, unmodified, to AKS (Azure), EKS (AWS, Arc) and the
+# Equinix-hosted K3s cluster (Arc over ExpressRoute). Everything that differs
+# per footprint is layered on by Fleet ResourceOverrides
+# (kubernetes/overrides/) - never by forking these files.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: online-boutique
+
+labels:
+  - pairs:
+      demo: equinix-arc-online-boutique
+      app.kubernetes.io/part-of: online-boutique
+      app.kubernetes.io/managed-by: kustomize
+    includeSelectors: false
+    includeTemplates: true
+
+resources:
+  - namespace.yaml
+  - redis.yaml
+  - frontend.yaml
+  - adservice.yaml
+  - cartservice.yaml
+  - checkoutservice.yaml
+  - currencyservice.yaml
+  - emailservice.yaml
+  - loadgenerator.yaml
+  - paymentservice.yaml
+  - productcatalogservice.yaml
+  - recommendationservice.yaml
+  - shippingservice.yaml
+
+images: []

@@ -1,0 +1,59 @@
+# ==============================================================================
+# equinix-arc-demo - .gitignore
+# Primary control keeping secrets, kubeconfigs and Terraform state out of git.
+# scripts/lib/secret-scan.ps1 is the second line of defense.
+# ==============================================================================
+
+# ---- Local configuration / secrets ---------------------------------------------
+.env
+.env.*
+!.env.example
+*credentials*
+*Credentials*
+*CREDENTIALS*
+secrets/
+*.secret
+*.secrets
+*.pem
+*.key
+
+# ---- Terraform -------------------------------------------------------------------
+# .terraform.lock.hcl IS committed (pins provider versions/hashes).
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# ---- Kubeconfigs / CLI state ------------------------------------------------------
+kubeconfig*
+*.kubeconfig
+.kube/
+.aws/
+.azure/
+
+# ---- Generated artifacts (region selection, reports, rendered configs, Arc proxy
+# kubeconfig, edge-router snippets) -------------------------------------------------
+artifacts/*
+!artifacts/.gitkeep
+
+# ---- Editors / OS -------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+.DS_Store
+~$*
+
+# ---- Misc ---------------------------------------------------------------------------
+node_modules/
+*.log

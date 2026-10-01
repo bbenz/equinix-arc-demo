@@ -1,0 +1,13 @@
+# Cloud-neutral namespace for the Online Boutique demo application.
+#
+# kubernetes/fleet/cluster-resource-placement.yaml selects this Namespace, and
+# Fleet propagates everything inside it to every member cluster the placement
+# selects (AKS, Arc-enabled EKS, Arc-enabled Equinix K3s).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: online-boutique
+  labels:
+    demo: equinix-arc-online-boutique
+    app.kubernetes.io/part-of: online-boutique
+    environment: demo

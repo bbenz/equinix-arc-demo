@@ -125,20 +125,6 @@ It can run on a laptop or a VM. The cluster joins Fleet as `equinix-demo` with `
 `connectivity=public-internet-rehearsal`, and every Fleet/override step works. No circuit, gateway,
 or proxy is created. This lets you rehearse the Fleet story now and add the private path later.
 
-## Cost (list prices, US West, September 2026)
-
-| Component | Approx. | Notes |
-|---|---|---|
-| Fleet hub (1x D2s_v5) | $0.10/hr | Fleet Manager itself is free |
-| AKS `aks-demo` (2x D2s_v5, Free tier) | $0.19/hr | |
-| ExpressRoute circuit, 50 Mbps Standard Metered | **$55/month** + $0.025/GB egress | **Bills from creation** |
-| ExpressRoute gateway ErGwScale (1 scale unit) | $0.21/hr | ErGw1AZ fallback costs $0.36/hr |
-| Egress proxy VM (B2s) + Standard public IP | $0.05/hr | |
-| EKS `eks-demo` (control plane + 2x t3.large) | $0.27/hr | |
-| Arc-enabled Kubernetes (EKS, Equinix) | $0 | You pay for extensions you add, such as Defender or Monitor |
-| **Azure + AWS total** | **≈ $0.89/hr (≈ $650/month)** | Excludes Equinix and data egress |
-| Equinix Fabric connections, ports/FCR, colocation, servers | Quote from Equinix | Usually a monthly commitment, so confirm with your account team |
-
 Optional extras: a private ACR (Premium, about $1.67/day, plus a private endpoint) and a DNS Private
 Resolver inbound endpoint. Both are off by default.
 
@@ -157,6 +143,4 @@ Resolver inbound endpoint. Both are off by default.
 ## Attribution and license
 
 This repo deploys [Online Boutique](https://github.com/GoogleCloudPlatform/microservices-demo) by Google
-(Apache-2.0), pinned to `v0.10.6` and unmodified. The infrastructure and orchestration code here is
-provided as-is for demonstration purposes. Its structure and lessons learned derive from the
-`fleet-manager-arc-demo` repository.
+(Apache-2.0), pinned to `v0.10.6` and unmodified. The infrastructure and orchestration code here is provided as-is for demonstration purposes. 
